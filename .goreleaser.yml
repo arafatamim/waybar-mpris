@@ -1,0 +1,33 @@
+project_name: waybar-mpris
+release:
+    gitea:
+        owner: hrfee
+        name: waybar-mpris
+    name_template: "v{{.Version}}"
+before:
+  hooks:
+    - go mod download
+builds:
+    - dir: ./
+      env:
+        - CGO_ENABLED=0
+      goos:
+        - linux
+      goarch:
+        - amd64
+        - arm
+        - arm64
+archives:
+  - replacements:
+        linux: Linux
+        amd64: x86_64
+checksum:
+    name_template: 'checksums.txt'
+snapshot:
+    name_template: "git-{{.ShortCommit}}"
+changelog:
+    sort: asc
+    filters:
+        exclude:
+            - '^docs:'
+            - '^test:'
