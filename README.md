@@ -19,15 +19,7 @@ MPRIS2 is widely supported, so this component should work with:
 
 ## Install
 
-Available on the AUR as [waybar-mpris-git](https://aur.archlinux.org/packages/waybar-mpris-git/) (Thanks @nichobi!)
-
-`go get git.hrfee.pw/hrfee/waybar-mpris` will compile from source and install.
-
-You can also download a precompiled binaries from [here](https://builds2.hrfee.pw/view/hrfee/waybar-mpris).
-
-## Issues
-
-Stick them on [mpris2client](https://github.com/hrfee/mpris2client) or the [og](https://github.com/hrfee/waybar-mpris) repository (both on github) if you can't make an account here.
+`go get github.com/arafatamim/waybar-mpris` will compile from source and install.
 
 ## Usage
 
