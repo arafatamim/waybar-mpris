@@ -33,8 +33,8 @@ var (
 	ORDER     = "SYMBOL:ARTIST:ALBUM:TITLE:POSITION"
 	AUTOFOCUS = false
 	// Available commands that can be sent to running instances.
-	COMMANDS              = []string{"player-next", "player-prev", "next", "prev", "toggle", "list"}
-	SHOW_POS              = false
+	COMMANDS = []string{"player-next", "player-prev", "next", "prev", "toggle", "list"}
+	// SHOW_POS              = false
 	INTERPOLATE           = false
 	REPLACE               = false
 	WRITER      io.Writer = os.Stdout
@@ -42,6 +42,10 @@ var (
 
 // JSON returns json for waybar to consume.
 func playerJSON(p *mpris2.Player) string {
+	if p.Artist == "" && p.Title == "" && p.StringPosition("") == "" {
+		return "{}"
+	}
+
 	data := map[string]string{}
 
 	// SYMBOL
@@ -53,13 +57,10 @@ func playerJSON(p *mpris2.Player) string {
 	}
 
 	// POSITION
-	var pos string
-	if SHOW_POS {
-		pos = p.StringPosition(" - ")
-		// if pos != "" {
-		// 	pos = "(" + pos + ")"
-		// }
-	}
+	pos := p.StringPosition(" - ")
+	// if pos != "" {
+	// 	pos = "(" + pos + ")"
+	// }
 
 	var items []string
 	order := strings.Split(ORDER, ":")
@@ -80,7 +81,7 @@ func playerJSON(p *mpris2.Player) string {
 				items = append(items, p.Title)
 			}
 		case "POSITION":
-			if pos != "" && SHOW_POS {
+			if pos != "" {
 				items = append(items, pos)
 			}
 		}
@@ -153,7 +154,6 @@ func main() {
 	flag.StringVar(&SEP, "separator", SEP, "Separator string to use between artist, album, and title.")
 	flag.StringVar(&ORDER, "order", ORDER, "Element order.")
 	flag.BoolVar(&AUTOFOCUS, "autofocus", AUTOFOCUS, "Auto switch to currently playing music players.")
-	flag.BoolVar(&SHOW_POS, "position", SHOW_POS, "Show current position between brackets, e.g (04:50/05:00)")
 	flag.BoolVar(&INTERPOLATE, "interpolate", INTERPOLATE, "Interpolate track position (helpful for players that don't update regularly, e.g mpDris2)")
 	flag.BoolVar(&REPLACE, "replace", REPLACE, "replace existing waybar-mpris if found. When false, new instance will clone the original instances output.")
 	var command string
@@ -319,18 +319,18 @@ func main() {
 		}
 	}()
 	go players.mpris2.Listen()
-	if SHOW_POS {
-		go func() {
-			for {
-				time.Sleep(POLL * time.Second)
-				if len(players.mpris2.List) != 0 {
-					if players.mpris2.List[players.mpris2.Current].Playing {
-						go fmt.Fprintln(WRITER, players.JSON())
-					}
+	// if SHOW_POS {
+	go func() {
+		for {
+			time.Sleep(POLL * time.Second)
+			if len(players.mpris2.List) != 0 {
+				if players.mpris2.List[players.mpris2.Current].Playing {
+					go fmt.Fprintln(WRITER, players.JSON())
 				}
 			}
-		}()
-	}
+		}
+	}()
+	// }
 	fmt.Fprintln(WRITER, players.JSON())
 	for v := range players.mpris2.Messages {
 		if v.Name == "refresh" {
