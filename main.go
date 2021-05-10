@@ -102,17 +102,17 @@ func playerJSON(p *mpris2.Player) string {
 		text += v + right
 	}
 
-	data["tooltip"] = fmt.Sprintf(
-		"%s\nby %s\n",
-		strings.ReplaceAll(p.Title, "&", "&amp;"),
-		strings.ReplaceAll(p.Artist, "&", "&amp;"))
 	if p.Artist == "" && p.Title == "" {
 		data["tooltip"] = "" // Empty tooltip if not title and artist
 	}
-	if p.Album != "" {
-		data["tooltip"] += "from " + strings.ReplaceAll(p.Album, "&", "&amp;") + "\n"
+	data["tooltip"] = strings.ReplaceAll(p.Title, "&", "&amp;")
+	if p.Artist != "" {
+		data["tooltip"] += fmt.Sprintf("\nby %s", strings.ReplaceAll(p.Artist, "&", "&amp;"))
 	}
-	data["tooltip"] += "(" + p.Name + ")"
+	if p.Album != "" {
+		data["tooltip"] += "\nfrom " + strings.ReplaceAll(p.Album, "&", "&amp;")
+	}
+	data["tooltip"] += "\n(" + p.Name + ")"
 	data["text"] = text
 	out, err := json.Marshal(data)
 	if err != nil {
