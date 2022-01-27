@@ -199,6 +199,9 @@ func playerJSON(p *player) string {
 	} else {
 		pos = formatDuration(int(p.Position/1000000), p.Length)
 	}
+  if p.Length == 0 {
+    pos = ""
+  }
 	var items []string
 	order := strings.Split(ORDER, ":")
 	for _, v := range order {
@@ -240,7 +243,7 @@ func playerJSON(p *player) string {
 		} else if i != len(items)-1 && items[i+1] != symbol && items[i+1] != pos {
 			right = SEP
 		} else {
-			right = " "
+			right = ""
 		}
 		text += v + right
 	}
