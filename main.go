@@ -182,6 +182,9 @@ func formatDuration(position int, length int) string {
 
 // JSON returns json for waybar to consume.
 func playerJSON(p *player) string {
+	if p.Title == "" && !p.Playing {
+		return "{}"
+	}
 	symbol := PLAY
 	out := "{\"class\":\""
 	if p.Playing {
@@ -199,9 +202,9 @@ func playerJSON(p *player) string {
 	} else {
 		pos = formatDuration(int(p.Position/1000000), p.Length)
 	}
-  if p.Length == 0 {
-    pos = ""
-  }
+	if p.Length == 0 {
+		pos = ""
+	}
 	var items []string
 	order := strings.Split(ORDER, ":")
 	for _, v := range order {
