@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	mpris2 "github.com/arafatamim/mpris2client"
@@ -30,13 +32,11 @@ const (
 var (
 	PLAY      = "▶"
 	PAUSE     = ""
-	SEP       = " - "
-	ORDER     = "SYMBOL:ARTIST:ALBUM:TITLE:POSITION"
-	AUTOFOCUS = false
+	FORMAT    = "{{.Symbol}}{{.Position | padLeft}}"
+	AUTOFOCUS = true
 	// Available commands that can be sent to running instances.
 	COMMANDS                          = []string{"player-next", "player-prev", "next", "prev", "toggle", "list"}
-	POSFORMAT                         = "(P/L)"
-	PADZERO                           = true
+	PADZERO                           = false
 	INTERPOLATE                       = false
 	REPLACE                           = false
 	isSharing                         = false
@@ -85,7 +85,7 @@ func stringToCmd(str string) string {
 	return ""
 }
 
-func formatString(text string) string {
+func escapeString(text string) string {
 	s := strings.ReplaceAll(text, "\"", "\\\"")
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	return s
@@ -170,14 +170,14 @@ func formatSeconds(seconds int) string {
 	}
 }
 
-func formatDuration(position int, length int) string {
-	posStr := formatSeconds(position)
-	lenStr := formatSeconds(length)
-
-	str := strings.ReplaceAll(POSFORMAT, "P", posStr)
-	str = strings.ReplaceAll(str, "L", lenStr)
-
-	return str
+type formatArgs struct {
+	Title    string
+	Artist   string
+	Album    string
+	Player   string
+	Symbol   string
+	Position string
+	Length   string
 }
 
 // JSON returns json for waybar to consume.
@@ -185,80 +185,61 @@ func playerJSON(p *player) string {
 	if p.Title == "" && !p.Playing {
 		return "{}"
 	}
-	symbol := PLAY
+
+	title := escapeString(p.Title)
+	artist := escapeString(p.Artist)
+	album := escapeString(p.Album)
+	player := escapeString(p.Name)
+
+	symbol := PAUSE
 	out := "{\"class\":\""
 	if p.Playing {
-		symbol = PAUSE
+		symbol = PLAY
 		out += "playing"
 	} else {
 		out += "paused"
 	}
-	var pos string
-	if !p.Duplicate {
-		pos = p.StringPosition(" - ")
-		if pos != "" {
-			pos = formatDuration(int(p.Position/1000000), p.Length)
-		}
-	} else {
-		pos = formatDuration(int(p.Position/1000000), p.Length)
-	}
+	var position string = formatSeconds(int(p.Position / 1000000))
+	var length string = formatSeconds(p.Length)
 	if p.Length == 0 {
-		pos = ""
+		position = ""
+		length = ""
 	}
-	var items []string
-	order := strings.Split(ORDER, ":")
-	for _, v := range order {
-		switch v {
-		case "SYMBOL":
-			items = append(items, symbol)
-		case "ARTIST":
-			if p.Artist != "" {
-				items = append(items, p.Artist)
-			}
-		case "ALBUM":
-			if p.Album != "" {
-				items = append(items, p.Album)
-			}
-		case "TITLE":
-			if p.Title != "" {
-				items = append(items, p.Title)
-			}
-		case "POSITION":
-			if pos != "" {
-				items = append(items, pos)
-			} else {
-				isPolling = false
-			}
-		case "PLAYER":
-			if p.Name != "" {
-				items = append(items, p.Name)
-			}
-		}
+	data := formatArgs{
+		Title:    title,
+		Artist:   artist,
+		Album:    album,
+		Player:   player,
+		Symbol:   symbol,
+		Position: position,
+		Length:   length,
 	}
-	if len(items) == 0 {
-		return "{}"
+	funcMap := template.FuncMap{
+		"padLeft": func(str string) string {
+			if str != "" {
+				return " " + str
+			}
+			return str
+		},
 	}
-	text := ""
-	for i, v := range items {
-		right := ""
-		if (v == symbol || v == pos) && i != len(items)-1 {
-			right = " "
-		} else if i != len(items)-1 && items[i+1] != symbol && items[i+1] != pos {
-			right = SEP
-		} else {
-			right = ""
-		}
-		text += v + right
+	templ, err := template.New("text").Funcs(funcMap).Parse(FORMAT)
+	if err != nil {
+    fmt.Println(err)
+    fmt.Println("Cannot continue due to error in format string!")
+    os.Exit(1)
 	}
-	out += "\",\"text\":\"" + formatString(text) + "\","
-	out += "\"tooltip\":\"" + formatString(p.Title) + "\\n"
+	var text bytes.Buffer
+	templ.Execute(&text, data)
+
+	out += "\",\"text\":\"" + text.String() + "\","
+	out += "\"tooltip\":\"" + title + "\\n"
 	if p.Artist != "" {
-		out += "by " + formatString(p.Artist) + "\\n"
+		out += "by " + artist + "\\n"
 	}
 	if p.Album != "" {
-		out += "from " + formatString(p.Album) + "\\n"
+		out += "from " + album + "\\n"
 	}
-	out += "(" + p.Name + ")\"}"
+	out += "(" + player + ")\"}"
 	return out
 }
 
@@ -594,10 +575,8 @@ func main() {
 	log.SetOutput(mw)
 	flag.StringVar(&PLAY, "play", PLAY, "Play symbol/text to use.")
 	flag.StringVar(&PAUSE, "pause", PAUSE, "Pause symbol/text to use.")
-	flag.StringVar(&SEP, "separator", SEP, "Separator string to use between artist, album, and title.")
-	flag.StringVar(&ORDER, "order", ORDER, "Element order. An extra \"PLAYER\" element is also available.")
-	flag.BoolVar(&AUTOFOCUS, "autofocus", AUTOFOCUS, "Auto switch to currently playing music players.")
-	flag.StringVar(&POSFORMAT, "position-format", POSFORMAT, "Format string for track duration, where P is current position, L is the track length.")
+	flag.StringVarP(&FORMAT, "format", "f", FORMAT, "Format string for output.")
+	flag.BoolVarP(&AUTOFOCUS, "autofocus", "F", AUTOFOCUS, "Auto switch to currently playing music players.")
 	flag.BoolVar(&PADZERO, "pad-zero", PADZERO, "Apply zero padding to track duration.")
 	flag.BoolVar(&INTERPOLATE, "interpolate", INTERPOLATE, "Interpolate track position (helpful for players that don't update regularly, e.g mpDris2)")
 	flag.BoolVar(&REPLACE, "replace", REPLACE, "replace existing waybar-mpris if found. When false, new instance will clone the original instances output.")
@@ -610,7 +589,6 @@ func main() {
 	if command != "" {
 		execCommand(command)
 	}
-	// fmt.Println("New array", players)
 	// Start command listener
 	if _, err := os.Stat(SOCK); err == nil {
 		if REPLACE {
