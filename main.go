@@ -199,8 +199,15 @@ func playerJSON(p *player) string {
 	} else {
 		out += "paused"
 	}
-	var position string = formatSeconds(int(p.Position / 1000000))
-	var length string = formatSeconds(p.Length)
+
+  var position string
+  var length string
+  getPos := p.GetPosition()
+  if !getPos {
+    position = ""
+  }
+	position = formatSeconds(int(p.Position / 1000000))
+	length = formatSeconds(p.Length)
 	if p.Length == 0 {
 		position = ""
 		length = ""
