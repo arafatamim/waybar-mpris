@@ -150,10 +150,10 @@ type player struct {
 	Duplicate bool
 }
 
-func formatSeconds(seconds int) string {
-	minutes := int(seconds / 60)
-	seconds -= int(minutes * 60)
-	hours := int(minutes / 60)
+func formatSeconds(totalSeconds int) string {
+  hours := totalSeconds / 3600
+  minutes := totalSeconds % 3600 / 60
+  seconds := totalSeconds % 60
 
 	if hours == 0 {
 		if PADZERO {
