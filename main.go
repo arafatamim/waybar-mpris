@@ -200,17 +200,19 @@ func playerJSON(p *player) string {
 		out += "paused"
 	}
 
-  var position string
-  var length string
-  getPos := p.GetPosition()
-  if !getPos {
-    position = ""
-  }
-	position = formatSeconds(int(p.Position / 1000000))
-	length = formatSeconds(p.Length)
+	var posStr string
+	var lenStr string
+	getPos := true
+	if !p.Duplicate {
+		getPos = p.GetPosition()
+	}
+	if getPos {
+		posStr = formatSeconds(int(p.Position / 1000000))
+		lenStr = formatSeconds(p.Length)
+	}
 	if p.Length == 0 {
-		position = ""
-		length = ""
+		posStr = ""
+		lenStr = ""
 	}
 	data := formatArgs{
 		Title:    title,
@@ -218,8 +220,8 @@ func playerJSON(p *player) string {
 		Album:    album,
 		Player:   player,
 		Symbol:   symbol,
-		Position: position,
-		Length:   length,
+		Position: posStr,
+		Length:   lenStr,
 	}
 	funcMap := template.FuncMap{
 		"padLeft": func(str string) string {
@@ -231,9 +233,9 @@ func playerJSON(p *player) string {
 	}
 	templ, err := template.New("text").Funcs(funcMap).Parse(FORMAT)
 	if err != nil {
-    fmt.Println(err)
-    fmt.Println("Cannot continue due to error in format string!")
-    os.Exit(1)
+		fmt.Println(err)
+		fmt.Println("Cannot continue due to error in format string!")
+		os.Exit(1)
 	}
 	var text bytes.Buffer
 	templ.Execute(&text, data)
